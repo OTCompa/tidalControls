@@ -29,7 +29,7 @@ import { classes, copyWithToast } from "@utils/misc";
 import { ContextMenuApi, FluxDispatcher, Forms, Menu, React, useEffect, useState, useStateFromStores } from "@webpack/common";
 
 import { SeekBar } from "./SeekBar";
-import { SpotifyStore, Track } from "./SpotifyStore";
+import { TidalStore, Track } from "./TidalStore";
 
 const cl = classNameFactory("vc-spotify-");
 
@@ -98,7 +98,7 @@ function CopyContextMenu({ name, path }: { name: string; path: string; }) {
                 key={openId}
                 id={openId}
                 label={`Open ${name} in Spotify`}
-                action={() => SpotifyStore.openExternal(path)}
+                action={() => TidalStore.openExternal(path)}
                 icon={OpenExternalIcon}
             />
         </Menu.Menu>
@@ -112,8 +112,8 @@ function makeContextMenu(name: string, path: string) {
 
 function Controls() {
     const [isPlaying, shuffle, repeat] = useStateFromStores(
-        [SpotifyStore],
-        () => [SpotifyStore.isPlaying, SpotifyStore.shuffle, SpotifyStore.repeat]
+        [TidalStore],
+        () => [TidalStore.isPlaying, TidalStore.shuffle, TidalStore.repeat]
     );
 
     const [nextRepeat, repeatClassName] = (() => {
@@ -130,24 +130,24 @@ function Controls() {
         <Flex className={cl("button-row")} style={{ gap: 0 }}>
             <Button
                 className={classes(cl("button"), cl("shuffle"), cl(shuffle ? "shuffle-on" : "shuffle-off"))}
-                onClick={() => SpotifyStore.setShuffle(!shuffle)}
+                onClick={() => TidalStore.setShuffle(!shuffle)}
             >
                 <Shuffle />
             </Button>
             <Button onClick={() => {
-                Settings.plugins.SpotifyControls.previousButtonRestartsTrack && SpotifyStore.position > 3000 ? SpotifyStore.seek(0) : SpotifyStore.prev();
+                Settings.plugins.SpotifyControls.previousButtonRestartsTrack && TidalStore.position > 3000 ? TidalStore.seek(0) : TidalStore.prev();
             }}>
                 <SkipPrev />
             </Button>
-            <Button onClick={() => SpotifyStore.setPlaying(!isPlaying)}>
+            <Button onClick={() => TidalStore.setPlaying(!isPlaying)}>
                 {isPlaying ? <PauseButton /> : <PlayButton />}
             </Button>
-            <Button onClick={() => SpotifyStore.next()}>
+            <Button onClick={() => TidalStore.next()}>
                 <SkipNext />
             </Button>
             <Button
                 className={classes(cl("button"), cl("repeat"), cl(repeatClassName))}
-                onClick={() => SpotifyStore.setRepeat(nextRepeat)}
+                onClick={() => TidalStore.setRepeat(nextRepeat)}
                 style={{ position: "relative" }}
             >
                 {repeat === "track" && <span className={cl("repeat-1")}>1</span>}
@@ -158,22 +158,22 @@ function Controls() {
 }
 
 const seek = debounce((v: number) => {
-    SpotifyStore.seek(v);
+    TidalStore.seek(v);
 });
 
 function SpotifySeekBar() {
-    const { duration } = SpotifyStore.track!;
+    const { duration } = TidalStore.track!;
 
     const [storePosition, isSettingPosition, isPlaying] = useStateFromStores(
-        [SpotifyStore],
-        () => [SpotifyStore.mPosition, SpotifyStore.isSettingPosition, SpotifyStore.isPlaying]
+        [TidalStore],
+        () => [TidalStore.mPosition, TidalStore.isSettingPosition, TidalStore.isPlaying]
     );
 
     const [position, setPosition] = useState(storePosition);
 
     useEffect(() => {
         if (isPlaying && !isSettingPosition) {
-            setPosition(SpotifyStore.position);
+            setPosition(TidalStore.position);
             const interval = setInterval(() => {
                 setPosition(p => p + 1000);
             }, 1000);
@@ -218,7 +218,7 @@ function SpotifySeekBar() {
 
 
 function AlbumContextMenu({ track }: { track: Track; }) {
-    const volume = useStateFromStores([SpotifyStore], () => SpotifyStore.volume);
+    const volume = useStateFromStores([TidalStore], () => TidalStore.volume);
 
     return (
         <Menu.Menu
@@ -230,7 +230,7 @@ function AlbumContextMenu({ track }: { track: Track; }) {
                 key="open-album"
                 id="open-album"
                 label="Open Album"
-                action={() => SpotifyStore.openExternal(`/album/${track.album.id}`)}
+                action={() => TidalStore.openExternal(`/album/${track.album.id}`)}
                 icon={OpenExternalIcon}
             />
             <Menu.MenuItem
@@ -252,7 +252,7 @@ function AlbumContextMenu({ track }: { track: Track; }) {
                         value={volume}
                         minValue={0}
                         maxValue={100}
-                        onChange={debounce((v: number) => SpotifyStore.setVolume(v))}
+                        onChange={debounce((v: number) => TidalStore.setVolume(v))}
                     />
                 )}
             />
@@ -265,7 +265,7 @@ function makeLinkProps(name: string, condition: unknown, path: string) {
 
     return {
         role: "link",
-        onClick: () => SpotifyStore.openExternal(path),
+        onClick: () => TidalStore.openExternal(path),
         onContextMenu: makeContextMenu(name, path)
     } satisfies React.HTMLAttributes<HTMLElement>;
 }
@@ -350,20 +350,20 @@ function Info({ track }: { track: Track; }) {
 
 export function Player() {
     const track = useStateFromStores(
-        [SpotifyStore],
-        () => SpotifyStore.track,
+        [TidalStore],
+        () => TidalStore.track,
         null,
         (prev, next) => prev?.id ? (prev.id === next?.id) : prev?.name === next?.name
     );
 
     const device = useStateFromStores(
-        [SpotifyStore],
-        () => SpotifyStore.device,
+        [TidalStore],
+        () => TidalStore.device,
         null,
         (prev, next) => prev?.id === next?.id
     );
 
-    const isPlaying = useStateFromStores([SpotifyStore], () => SpotifyStore.isPlaying);
+    const isPlaying = useStateFromStores([TidalStore], () => TidalStore.isPlaying);
     const [shouldHide, setShouldHide] = useState(false);
 
     // Hide player after 5 minutes of inactivity
@@ -376,7 +376,7 @@ export function Player() {
         }
     }, [isPlaying]);
 
-    if (!track || !device?.is_active || shouldHide)
+    if (!track || shouldHide)
         return null;
 
     const exportTrackImageStyle = {
