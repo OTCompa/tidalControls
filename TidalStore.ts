@@ -98,7 +98,11 @@ export const TidalStore = proxyLazyWebpack(() => {
     }
 
     prev() {
-      this._req("PUT", "/previous");
+      if (this.position > 3000) {
+        this.seek(0);
+      } else {
+        this._req("PUT", "/prev");
+      }
     }
 
     next() {
@@ -169,7 +173,6 @@ export const TidalStore = proxyLazyWebpack(() => {
         backOff += 3;
         return;
       } else {
-        logger.info(json);
         store.track = {
           id: json.item?.id ?? "",
           name: json.item?.title ?? "",
