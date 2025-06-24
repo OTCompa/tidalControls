@@ -1,27 +1,15 @@
 /*
- * Vencord, a modification for Discord's desktop app
- * Copyright (c) 2022 Vendicated and contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * Vencord, a Discord client mod
+ * Copyright (c) 2025 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { Settings } from "@api/Settings";
-import { findByProps, findByPropsLazy, proxyLazyWebpack } from "@webpack";
-import { Flux, FluxDispatcher } from "@webpack/common";
-import { useEffect } from "@webpack/common";
 import { Logger } from "@utils/Logger";
+import { proxyLazyWebpack } from "@webpack";
+import { Flux, FluxDispatcher } from "@webpack/common";
 
+
+const Native = VencordNative.pluginHelpers.TidalControls as PluginNative<typeof import("./native")>;
 export interface Track {
   id: string;
   name: string;
@@ -68,14 +56,11 @@ interface Device {
 export type Repeat = "off" | "track" | "context";
 
 const logger = new Logger("TidalControls");
+const host = "127.0.0.1";
+const port = 3665;
 
 // Don't wanna run before Flux and Dispatcher are ready!
 export const TidalStore = proxyLazyWebpack(() => {
-  const SpotifySocket = findByProps("getActiveSocketAndDevice");
-  const SpotifyAPI = findByPropsLazy("vcSpotifyMarker");
-
-  const API_BASE = "https://api.spotify.com/v1/me/player";
-
   class TidalStore extends Flux.Store {
     public mPosition = 0;
     public _start = 0;
@@ -112,11 +97,11 @@ export const TidalStore = proxyLazyWebpack(() => {
     }
 
     prev() {
-      //this._req("post", "/previous");
+      this._req("PUT", "/previous");
     }
 
     next() {
-      //this._req("post", "/next");
+      this._req("PUT", "/next");
     }
 
     setVolume(percent: number) {
@@ -131,43 +116,32 @@ export const TidalStore = proxyLazyWebpack(() => {
     }
 
     setPlaying(playing: boolean) {
-      //   this._req("put", playing ? "/play" : "/pause");
+      this._req("PUT", playing ? "/play" : "/pause");
     }
 
     setRepeat(state: Repeat) {
-      //   this._req("put", "/repeat", {
-      //     query: { state },
-      //   });
+      this._req("PUT", "/repeat", { state }).then(() => {
+        this.repeat = state;
+        this.emitChange();
+      });
     }
 
     setShuffle(state: boolean) {
-      //   this._req("put", "/shuffle", {
-      //     query: { state },
-      //   }).then(() => {
-      //     this.shuffle = state;
-      //     this.emitChange();
-      //   });
+      this._req("PUT", "/shuffle", { state }).then(() => {
+        this.shuffle = state;
+        this.emitChange();
+      });
     }
 
     seek(ms: number) {
-      //   if (this.isSettingPosition) return Promise.resolve();
-      //   this.isSettingPosition = true;
-      //   return this._req("put", "/seek", {
-      //     query: {
-      //       position_ms: Math.round(ms),
-      //     },
-      //   }).catch((e: any) => {
-      //     console.error("[VencordSpotifyControls] Failed to seek", e);
-      //     this.isSettingPosition = false;
-      //   });
+      if (this.isSettingPosition) return Promise.resolve();
+      this.isSettingPosition = true;
+      this._req("PUT", "/seek", { position: ms / 1000 });
+      this.isSettingPosition = false;
     }
 
-    _req(method: "post" | "get" | "put", route: string, data: any = {}) {
-      const { socket } = SpotifySocket.getActiveSocketAndDevice();
-      return SpotifyAPI[method](socket.accountId, socket.accessToken, {
-        url: API_BASE + route,
-        ...data,
-      });
+    async _req(method: "GET" | "PUT", route: string, data: any = {}) {
+      await Native.request(method, host, port, route, data);
     }
   }
 
@@ -176,20 +150,22 @@ export const TidalStore = proxyLazyWebpack(() => {
   let backOff = 0;
   const interval = setInterval(async () => {
     if (backOff > 0) {
-      logger.error(`[TidalStore] Retrying in ${backOff * 3} seconds...`);
+      logger.error(`[TidalStore] Retrying in ${backOff} seconds...`);
       backOff--;
       return;
     }
     const res = await fetch("http://127.0.0.1:3665/now-playing");
     if (!res.ok) {
       backOff += 3;
-      logger.error("[TidalStore] Failed to fetch now playing, retrying in 10 seconds...");
+      logger.error(
+        "[TidalStore] Failed to fetch now playing, retrying in 3 seconds..."
+      );
       return;
     } else {
       const json = await res.json();
       if (json.error) {
         logger.error("[TidalStore] Error fetching now playing:", json.error);
-        backOff += 10;
+        backOff += 3;
         return;
       } else {
         logger.info(json);
@@ -205,18 +181,19 @@ export const TidalStore = proxyLazyWebpack(() => {
               height: 1280,
               width: 1280,
               url: json.albumArt ?? "",
-            }
+            },
           },
-          artists: json.item?.artists?.map((artist: any) => ({
-            id: artist.id ?? "",
-            href: "",
-            name: artist.name ?? "",
-            type: "artist",
-            uri: "",
-          })) ?? []
+          artists:
+            json.item?.artists?.map((artist: any) => ({
+              id: artist.id ?? "",
+              href: "",
+              name: artist.name ?? "",
+              type: "artist",
+              uri: "",
+            })) ?? [],
         };
 
-        store.isPlaying = json.paused ? false : true;
+        store.isPlaying = !json.paused;
 
         // store.volume = json.volume ?? 0;
         // store.repeat = json.repeat ? "track" : "off";
@@ -229,7 +206,7 @@ export const TidalStore = proxyLazyWebpack(() => {
     }
   }, 1000);
 
-  //return () => clearInterval(interval);
+  // return () => clearInterval(interval);
 
   return store;
 });
