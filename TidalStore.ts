@@ -63,10 +63,9 @@ export const TidalStore = proxyLazyWebpack(() => {
     public device: Device | null = null;
 
     public openExternal(path: string) {
-      // const url = Settings.plugins.SpotifyControls.useSpotifyUris || Vencord.Plugins.isPluginEnabled("OpenInApp")
-      //   ? "spotify:" + path.replaceAll("/", (_, idx) => idx === 0 ? "" : ":")
-      //   : "https://listen.tidal.com" + path;
-      const url = `https://listen.tidal.com${path}`;
+      const url = Settings.plugins.TidalControls.useTidalUris || Vencord.Plugins.isPluginEnabled("OpenInApp")
+        ? `tidal:/${path}`
+        : `https://listen.tidal.com${path}`;
       VencordNative.native.openExternal(url);
     }
 
