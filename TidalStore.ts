@@ -54,9 +54,9 @@ export const TidalStore = proxyLazyWebpack(() => {
 
     public track: Track | null = null;
     public isPlaying = false;
-    public repeat: Repeat = "off";
-    public shuffle = false;
-    public volume = 0;
+    public repeat?: Repeat = undefined;
+    public shuffle?: boolean = undefined;
+    public volume?: number = undefined;
 
     public isSettingPosition = false;
 

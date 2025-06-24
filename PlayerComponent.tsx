@@ -250,7 +250,7 @@ function AlbumContextMenu({ track }: { track: Track; }) {
                     <Menu.MenuSliderControl
                         {...props}
                         ref={ref}
-                        value={volume}
+                        value={volume ?? 0}
                         minValue={0}
                         maxValue={100}
                         onChange={debounce((v: number) => TidalStore.setVolume(v))}

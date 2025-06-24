@@ -8,7 +8,7 @@ import { Settings } from "@api/Settings";
 import { Logger } from "@utils/Logger";
 import { useEffect } from "@webpack/common";
 
-import { TidalStore } from "./TidalStore";
+import { Repeat, TidalStore } from "./TidalStore";
 
 const logger = new Logger("TidalControls");
 
@@ -40,12 +40,22 @@ function parseTrack(json: any) {
     };
 }
 
+const COOLDOWN_SECONDS = 2;
 const host = Settings.plugins.TidalControls.host || "127.0.0.1";
 const port = Settings.plugins.TidalControls.port || 3665;
+
+const repeatDictionary: Record<string, Repeat> = {
+    0: "off",
+    1: "context",
+    2: "track",
+};
 
 export default function TidalStoreUpdater() {
     useEffect(() => {
         let backOff = 0;
+        let cooldownVolume = 0;
+        let cooldownShuffle = 0;
+        let cooldownRepeat = 0;
         const interval = setInterval(async () => {
             if (backOff > 0) {
                 logger.error(`[TidalStore] Retrying in ${backOff} seconds...`);
@@ -67,15 +77,33 @@ export default function TidalStoreUpdater() {
                     return;
                 } else {
                     TidalStore.track = parseTrack(json);
-
                     TidalStore.isPlaying = !json.paused;
-
-                    // store.volume = json.volume ?? 0;
-                    // store.repeat = json.repeat ? "track" : "off";
-                    // store.shuffle = json.shuffle ?? false;
                     TidalStore.position = (json.position ?? 0) * 1000;
 
-                    TidalStore.isSettingPosition = false;
+                    // only update these on initialization
+                    // if remotely updated, wait a bit to prevent resetting while API is still updating
+                    if (TidalStore.volume === undefined || cooldownVolume >= COOLDOWN_SECONDS) {
+                        TidalStore.volume = json.volume ?? undefined;
+                        cooldownVolume = 0;
+                    }
+
+                    if (TidalStore.repeat === undefined || cooldownRepeat >= COOLDOWN_SECONDS) {
+                        const repeat = json.repeat ?? undefined;
+                        if (repeat !== undefined) {
+                            TidalStore.repeat = repeatDictionary[repeat] ?? undefined;
+                            cooldownRepeat = 0;
+                        }
+                    }
+
+                    if (TidalStore.shuffle === undefined || cooldownShuffle >= COOLDOWN_SECONDS) {
+                        TidalStore.shuffle = json.shuffle ?? undefined;
+                        cooldownShuffle = 0;
+                    }
+
+                    if (TidalStore.volume !== json.volume) cooldownVolume += 1;
+                    if (TidalStore.repeat !== repeatDictionary[json.repeat]) cooldownRepeat += 1;
+                    if (TidalStore.shuffle !== json.shuffle) cooldownShuffle += 1;
+
                     TidalStore.emitChange();
                 }
             }
