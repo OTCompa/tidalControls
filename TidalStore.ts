@@ -110,14 +110,10 @@ export const TidalStore = proxyLazyWebpack(() => {
     }
 
     setVolume(percent: number) {
-      //   this._req("put", "/volume", {
-      //     query: {
-      //       volume_percent: Math.round(percent),
-      //     },
-      //   }).then(() => {
-      //     this.volume = percent;
-      //     this.emitChange();
-      //   });
+      this._req("PUT", "/volume", { level: percent }).then(() => {
+        this.volume = percent;
+        this.emitChange();
+      });
     }
 
     setPlaying(playing: boolean) {
