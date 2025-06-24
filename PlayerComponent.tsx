@@ -30,6 +30,7 @@ import { ContextMenuApi, FluxDispatcher, Forms, Menu, React, useEffect, useState
 
 import { SeekBar } from "./SeekBar";
 import { TidalStore, Track } from "./TidalStore";
+import TidalStoreUpdater from "./TidalStoreUpdater";
 
 const cl = classNameFactory("vc-spotify-");
 
@@ -135,7 +136,7 @@ function Controls() {
                 <Shuffle />
             </Button>
             <Button onClick={() => {
-                Settings.plugins.SpotifyControls.previousButtonRestartsTrack && TidalStore.position > 3000 ? TidalStore.seek(0) : TidalStore.prev();
+                Settings.plugins.TidalControls.previousButtonRestartsTrack && TidalStore.position > 3000 ? TidalStore.seek(0) : TidalStore.prev();
             }}>
                 <SkipPrev />
             </Button>
@@ -349,18 +350,12 @@ function Info({ track }: { track: Track; }) {
 }
 
 export function Player() {
+    TidalStoreUpdater();
     const track = useStateFromStores(
         [TidalStore],
         () => TidalStore.track,
         null,
         (prev, next) => prev?.id ? (prev.id === next?.id) : prev?.name === next?.name
-    );
-
-    const device = useStateFromStores(
-        [TidalStore],
-        () => TidalStore.device,
-        null,
-        (prev, next) => prev?.id === next?.id
     );
 
     const isPlaying = useStateFromStores([TidalStore], () => TidalStore.isPlaying);

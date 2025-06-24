@@ -28,7 +28,7 @@ export default definePlugin({
       default: false,
       onChange: v => toggleHoverControls(v),
     },
-    useSpotifyUris: {
+    useTidalUris: {
       type: OptionType.BOOLEAN,
       description:
         "Open Spotify URIs instead of Spotify URLs. Will only work if you have Spotify installed and might not work on all platforms",
@@ -40,6 +40,18 @@ export default definePlugin({
         "Restart currently playing track when pressing the previous button if playtime is >3s",
       default: true,
     },
+    hostname: {
+      type: OptionType.STRING,
+      description: "Hostname of the Tidal Controls server",
+      default: "127.0.0.1",
+    },
+    port: {
+      type: OptionType.NUMBER,
+      description: "Port of the Tidal Controls server",
+      default: 3665,
+      min: 1,
+      max: 65535,
+    }
   },
   patches: [
     {

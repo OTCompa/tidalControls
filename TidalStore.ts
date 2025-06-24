@@ -4,12 +4,14 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { Settings } from "@api/Settings";
 import { Logger } from "@utils/Logger";
 import { proxyLazyWebpack } from "@webpack";
 import { Flux, FluxDispatcher } from "@webpack/common";
+const Native = VencordNative.pluginHelpers.TidalControls as PluginNative<
+  typeof import("./native")
+>;
 
-
-const Native = VencordNative.pluginHelpers.TidalControls as PluginNative<typeof import("./native")>;
 export interface Track {
   id: string;
   name: string;
@@ -33,21 +35,6 @@ export interface Track {
   }[];
 }
 
-interface PlayerState {
-  accountId: string;
-  track: Track | null;
-  volumePercent: number;
-  isPlaying: boolean;
-  repeat: boolean;
-  position: number;
-  context?: any;
-  device?: Device;
-
-  // added by patch
-  actual_repeat: Repeat;
-  shuffle: boolean;
-}
-
 interface Device {
   id: string;
   is_active: boolean;
@@ -56,8 +43,8 @@ interface Device {
 export type Repeat = "off" | "track" | "context";
 
 const logger = new Logger("TidalControls");
-const host = "127.0.0.1";
-const port = 3665;
+const host = Settings.plugins.TidalControls.host || "127.0.0.1";
+const port = Settings.plugins.TidalControls.port || 3665;
 
 // Don't wanna run before Flux and Dispatcher are ready!
 export const TidalStore = proxyLazyWebpack(() => {
@@ -147,66 +134,6 @@ export const TidalStore = proxyLazyWebpack(() => {
   }
 
   const store = new TidalStore(FluxDispatcher);
-
-  let backOff = 0;
-  const interval = setInterval(async () => {
-    if (backOff > 0) {
-      logger.error(`[TidalStore] Retrying in ${backOff} seconds...`);
-      backOff--;
-      return;
-    }
-    const res = await fetch("http://127.0.0.1:3665/now-playing");
-    if (!res.ok) {
-      backOff += 3;
-      logger.error(
-        "[TidalStore] Failed to fetch now playing, retrying in 3 seconds..."
-      );
-      return;
-    } else {
-      const json = await res.json();
-      if (json.error) {
-        logger.error("[TidalStore] Error fetching now playing:", json.error);
-        backOff += 3;
-        return;
-      } else {
-        store.track = {
-          id: json.item?.id ?? "",
-          name: json.item?.title ?? "",
-          duration: (json.item?.duration ?? 0) * 1000,
-          isLocal: false,
-          album: {
-            id: json.item?.album?.id ?? "",
-            name: json.item?.album?.title ?? "",
-            image: {
-              height: 1280,
-              width: 1280,
-              url: json.albumArt ?? "",
-            },
-          },
-          artists:
-            json.item?.artists?.map((artist: any) => ({
-              id: artist.id ?? "",
-              href: "",
-              name: artist.name ?? "",
-              type: "artist",
-              uri: "",
-            })) ?? [],
-        };
-
-        store.isPlaying = !json.paused;
-
-        // store.volume = json.volume ?? 0;
-        // store.repeat = json.repeat ? "track" : "off";
-        // store.shuffle = json.shuffle ?? false;
-        store.position = (json.position ?? 0) * 1000;
-
-        store.isSettingPosition = false;
-        store.emitChange();
-      }
-    }
-  }, 1000);
-
-  // return () => clearInterval(interval);
 
   return store;
 });
