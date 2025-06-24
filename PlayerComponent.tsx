@@ -85,19 +85,19 @@ function CopyContextMenu({ name, path }: { name: string; path: string; }) {
         <Menu.Menu
             navId={`spotify-${name}-menu`}
             onClose={() => FluxDispatcher.dispatch({ type: "CONTEXT_MENU_CLOSE" })}
-            aria-label={`Spotify ${name} Menu`}
+            aria-label={`Tidal ${name} Menu`}
         >
             <Menu.MenuItem
                 key={copyId}
                 id={copyId}
                 label={`Copy ${name} Link`}
-                action={() => copyWithToast("https://open.spotify.com" + path)}
+                action={() => copyWithToast("https://listen.tidal.com" + path)}
                 icon={LinkIcon}
             />
             <Menu.MenuItem
                 key={openId}
                 id={openId}
-                label={`Open ${name} in Spotify`}
+                label={`Open ${name} in Tidal`}
                 action={() => TidalStore.openExternal(path)}
                 icon={OpenExternalIcon}
             />
@@ -224,7 +224,7 @@ function AlbumContextMenu({ track }: { track: Track; }) {
         <Menu.Menu
             navId="spotify-album-menu"
             onClose={() => FluxDispatcher.dispatch({ type: "CONTEXT_MENU_CLOSE" })}
-            aria-label="Spotify Album Menu"
+            aria-label="Tidal Album Menu"
         >
             <Menu.MenuItem
                 key="open-album"
