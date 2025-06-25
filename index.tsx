@@ -20,13 +20,20 @@ function toggleHoverControls(value: boolean) {
 export default definePlugin({
   name: "TidalControls",
   description: "Adds a Tidal player above the account panel",
-  authors: [Devs.Ven, Devs.afn, Devs.KraXen72, Devs.Av32000, Devs.nin0dev, { name: "Frey", id: 123124171386388480n }],
+  authors: [
+    Devs.Ven,
+    Devs.afn,
+    Devs.KraXen72,
+    Devs.Av32000,
+    Devs.nin0dev,
+    { name: "Frey", id: 123124171386388480n },
+  ],
   options: {
     hoverControls: {
       description: "Show controls on hover",
       type: OptionType.BOOLEAN,
       default: false,
-      onChange: v => toggleHoverControls(v),
+      onChange: (v) => toggleHoverControls(v),
     },
     useTidalUris: {
       type: OptionType.BOOLEAN,
@@ -51,7 +58,7 @@ export default definePlugin({
       default: 3665,
       min: 1,
       max: 65535,
-    }
+    },
   },
   patches: [
     {
@@ -97,7 +104,7 @@ export default definePlugin({
   ],
 
   start: () =>
-    toggleHoverControls(Settings.plugins.SpotifyControls.hoverControls),
+    toggleHoverControls(Settings.plugins.TidalControls.hoverControls),
 
   PanelWrapper({ VencordOriginal, ...props }) {
     return (
