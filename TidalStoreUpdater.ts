@@ -107,7 +107,7 @@ export default function TidalStoreUpdater() {
                         TidalStore.emitChange();
                     } else {
                         // else increase interval for next try
-                        backOffSeconds += 0 * (backOffCounter + 1);
+                        backOffSeconds += 3 * (backOffCounter + 1);
                         logger.log(`[TidalStoreUpdater] Failed to fetch now playing: ${e}\nRetrying in ${backOffSeconds} seconds...\nBackoff counter: ${backOffCounter}`);
                         if (backOffCounter < 20) { // max polling rate of 1 minute
                             backOffCounter++;
