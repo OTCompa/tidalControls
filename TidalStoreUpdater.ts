@@ -66,13 +66,13 @@ export default function TidalStoreUpdater() {
             async function loop() { // to make returns restart the loop
                 // backoff
                 if (backOffSeconds > 0) {
-                    if (!await Native.checkServerStatus() && !await Native.checkServerError()) {
-                        // if server indicated it is up
-                        logger.log("[TidalStoreUpdater] WebSocketServer is not running, assuming server is up again!");
-                        backOffSeconds = 0;
-                        backOffCounter = 0;
-                        return;
-                    }
+                    // if (!await Native.checkServerStatus() && !await Native.checkServerError()) {
+                    //     // if server indicated it is up
+                    //     logger.log("[TidalStoreUpdater] WebSocketServer is not running, assuming server is up again!");
+                    //     backOffSeconds = 0;
+                    //     backOffCounter = 0;
+                    //     return;
+                    // }
                     backOffSeconds--;
                     return;
                 }
@@ -86,30 +86,30 @@ export default function TidalStoreUpdater() {
                         return;
                     }
                 } catch (e) {
-                    if ((Settings.plugins.TidalControls?.listenServer ?? true) && backOffCounter >= 5 && !await Native.checkServerError()) {
-                        // if too many failed attempts in a row (over about ~63s), assume server is down and start listening for signs of life
-                        // this solution only works for one discord client at a time. i'll have to figure out a better way to handle this
-                        // falls back to other solution if listening server had an error
-                        logger.error("[TidalStoreUpdater] Too many failed attempts. Server is probably down.");
-                        if (!await Native.checkServerStatus()) { // if not already started
-                            logger.log("[TidalStoreUpdater] Setting up websocket server...");
-                            const serverStatus = await Native.startServer(Settings.plugins.TidalControls?.listenHost ?? "127.0.0.1", Settings.plugins.TidalControls?.listenPort ?? 3666);
-                            if (!serverStatus) {
-                                logger.error("[TidalStoreUpdater] Failed to start websocket server.");
-                                return;
-                            }
-                        }
-                        backOffSeconds = 300; // backup check every 5 minutes
-                        TidalStore.isPlaying = false;
-                        TidalStore.emitChange();
-                    } else {
-                        // else increase interval for next try
-                        backOffSeconds += 3 * (backOffCounter + 1);
-                        logger.log(`[TidalStoreUpdater] Failed to fetch now playing: ${e}\nRetrying in ${backOffSeconds} seconds...\nBackoff counter: ${backOffCounter}`);
-                        if (backOffCounter < 20) { // max polling rate of 1 minute
-                            backOffCounter++;
-                        }
+                    // if ((Settings.plugins.TidalControls?.listenServer ?? true) && backOffCounter >= 5 && !await Native.checkServerError()) {
+                    //     // if too many failed attempts in a row (over about ~63s), assume server is down and start listening for signs of life
+                    //     // this solution only works for one discord client at a time. i'll have to figure out a better way to handle this
+                    //     // falls back to other solution if listening server had an error
+                    //     logger.error("[TidalStoreUpdater] Too many failed attempts. Server is probably down.");
+                    //     if (!await Native.checkServerStatus()) { // if not already started
+                    //         logger.log("[TidalStoreUpdater] Setting up websocket server...");
+                    //         const serverStatus = await Native.startServer(Settings.plugins.TidalControls?.listenHost ?? "127.0.0.1", Settings.plugins.TidalControls?.listenPort ?? 3666);
+                    //         if (!serverStatus) {
+                    //             logger.error("[TidalStoreUpdater] Failed to start websocket server.");
+                    //             return;
+                    //         }
+                    //     }
+                    //     backOffSeconds = 300; // backup check every 5 minutes
+                    //     TidalStore.isPlaying = false;
+                    //     TidalStore.emitChange();
+                    // } else {
+                    // else increase interval for next try
+                    backOffSeconds += 3 * (backOffCounter + 1);
+                    logger.log(`[TidalStoreUpdater] Failed to fetch now playing: ${e}\nRetrying in ${backOffSeconds} seconds...\nBackoff counter: ${backOffCounter}`);
+                    if (backOffCounter < 20) { // max polling rate of 1 minute
+                        backOffCounter++;
                     }
+                    // }
                     return;
                 }
 
@@ -120,7 +120,7 @@ export default function TidalStoreUpdater() {
                     backOffSeconds += 3;
                     return;
                 } else {
-                    if (await Native.checkServerStatus()) await Native.stopServer();
+                    // if (await Native.checkServerStatus()) await Native.stopServer();
                     backOffCounter = 0;
 
                     TidalStore.track = parseTrack(json);
