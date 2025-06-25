@@ -43,8 +43,6 @@ interface Device {
 export type Repeat = "off" | "track" | "context";
 
 const logger = new Logger("TidalControls");
-const host = Settings.plugins.TidalControls?.host ?? "127.0.0.1";
-const port = Settings.plugins.TidalControls?.port ?? 3665;
 
 // Don't wanna run before Flux and Dispatcher are ready!
 export const TidalStore = proxyLazyWebpack(() => {
@@ -128,7 +126,7 @@ export const TidalStore = proxyLazyWebpack(() => {
     }
 
     async _req(method: "GET" | "PUT", route: string, data: any = {}) {
-      await Native.request(method, host, port, route, data);
+      await Native.request(method, Settings.plugins.TidalControls?.host ?? "127.0.0.1", Settings.plugins.TidalControls?.port ?? 3665, route, data);
     }
   }
 

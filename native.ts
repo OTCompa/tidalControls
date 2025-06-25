@@ -26,13 +26,13 @@ export async function request(_: IpcMainInvokeEvent, method: "GET" | "PUT", host
     });
 }
 
-export const startServer = (_: IpcMainInvokeEvent, port: number = 3666) => {
+export const startServer = (_: IpcMainInvokeEvent, host: string, port: number = 3666) => {
     if (server) {
         console.log("Server is already running, restarting");
         stopServer();
     }
     try {
-        server = new WebSocketServer({ host: "127.0.0.1", port });
+        server = new WebSocketServer({ host, port });
         wsServerActive = true;
         server.on("connection", ws => {
             console.log("Server is now detected, closing server.");

@@ -46,9 +46,6 @@ function parseTrack(json: any) {
 }
 
 const COOLDOWN_SECONDS = 2;
-const host = Settings.plugins.TidalControls?.host ?? "127.0.0.1";
-const port = Settings.plugins.TidalControls?.port ?? 3665;
-const listenPort = Settings.plugins.TidalControls?.listenPort ?? 3666;
 
 const repeatDictionary: Record<string, Repeat> = {
     0: "off",
@@ -60,7 +57,6 @@ export default function TidalStoreUpdater() {
     useEffect(() => {
         let backOffSeconds = 0;
         let backOffCounter = 0;
-        let backOffWss = false;
 
         let cooldownVolume = 0;
         let cooldownShuffle = 0;
@@ -70,16 +66,12 @@ export default function TidalStoreUpdater() {
             async function loop() { // to make returns restart the loop
                 // backoff
                 if (backOffSeconds > 0) {
-                    if (backOffWss) {
+                    if (!await Native.checkServerStatus() && !await Native.checkServerError()) {
                         // if server indicated it is up
-                        if (!await Native.checkServerStatus()) {
-                            if (await Native.checkServerError()) return; // don't try to restart listening server if errored
-                            logger.log("[TidalStoreUpdater] WebSocketServer is not running, assuming server is up again!");
-                            backOffWss = false;
-                            backOffSeconds = 0;
-                            backOffCounter = 0;
-                            return;
-                        }
+                        logger.log("[TidalStoreUpdater] WebSocketServer is not running, assuming server is up again!");
+                        backOffSeconds = 0;
+                        backOffCounter = 0;
+                        return;
                     }
                     backOffSeconds--;
                     return;
@@ -88,24 +80,24 @@ export default function TidalStoreUpdater() {
                 // try to hit endpoint
                 let res: Response;
                 try {
-                    res = await fetch(`http://${host}:${port}/now-playing`);
+                    res = await fetch(`http://${Settings.plugins.TidalControls?.host ?? "127.0.0.1"}:${Settings.plugins.TidalControls?.port ?? 3665}/now-playing`);
                     if (!res.ok) {
                         logger.error(`[TidalStoreUpdater] HTTP error! status: ${res.status}`);
                         return;
                     }
                 } catch (e) {
-                    if (backOffCounter >= 5) {
+                    if ((Settings.plugins.TidalControls?.listenServer ?? true) && backOffCounter >= 5 && !await Native.checkServerError()) {
                         // if too many failed attempts in a row (over about ~63s), assume server is down and start listening for signs of life
                         // this solution only works for one discord client at a time. i'll have to figure out a better way to handle this
+                        // falls back to other solution if listening server had an error
                         logger.error("[TidalStoreUpdater] Too many failed attempts. Server is probably down.");
-                        if (!backOffWss) { // if not already started
+                        if (!await Native.checkServerStatus()) { // if not already started
                             logger.log("[TidalStoreUpdater] Setting up websocket server...");
-                            const serverStatus = await Native.startServer(listenPort);
+                            const serverStatus = await Native.startServer(Settings.plugins.TidalControls?.listenHost ?? "127.0.0.1", Settings.plugins.TidalControls?.listenPort ?? 3666);
                             if (!serverStatus) {
                                 logger.error("[TidalStoreUpdater] Failed to start websocket server.");
                                 return;
                             }
-                            backOffWss = true;
                         }
                         backOffSeconds = 300; // backup check every 5 minutes
                         TidalStore.isPlaying = false;
@@ -114,7 +106,9 @@ export default function TidalStoreUpdater() {
                         // else increase interval for next try
                         backOffSeconds += 3 * (backOffCounter + 1);
                         logger.log(`[TidalStoreUpdater] Failed to fetch now playing: ${e}\nRetrying in ${backOffSeconds} seconds...\nBackoff counter: ${backOffCounter}`);
-                        backOffCounter++;
+                        if (backOffCounter < 20) { // max polling rate of 1 minute
+                            backOffCounter++;
+                        }
                     }
                     return;
                 }
@@ -126,10 +120,7 @@ export default function TidalStoreUpdater() {
                     backOffSeconds += 3;
                     return;
                 } else {
-                    if (await Native.checkServerStatus()) {
-                        await Native.stopServer();
-                        backOffWss = false;
-                    }
+                    if (await Native.checkServerStatus()) await Native.stopServer();
                     backOffCounter = 0;
 
                     TidalStore.track = parseTrack(json);

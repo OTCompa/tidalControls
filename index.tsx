@@ -59,6 +59,17 @@ export default definePlugin({
       min: 1,
       max: 65535,
     },
+    listenServer: {
+      type: OptionType.BOOLEAN,
+      description:
+        "Start a websocket server to listen for PlaybackApi status if plugin is hibernating. If two clients have this enabled at the same time, this feature will not work for one of the clients.",
+      default: true,
+    },
+    listenHost: {
+      type: OptionType.STRING,
+      description: "Hostname of the listening server",
+      default: "127.0.0.1",
+    },
     listenPort: {
       type: OptionType.NUMBER,
       description: "Port to listen on to get notified of PlaybackApi",
