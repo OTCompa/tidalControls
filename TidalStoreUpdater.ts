@@ -12,7 +12,7 @@ import { Repeat, TidalStore } from "./TidalStore";
 
 
 const Native = VencordNative.pluginHelpers.TidalControls as PluginNative<
-    typeof import("./TidalStoreListener.native")
+    typeof import("./native")
 >;
 
 const logger = new Logger("TidalControls");
@@ -95,16 +95,18 @@ export default function TidalStoreUpdater() {
                 } catch (e) {
                     if (backOffCounter >= 5) {
                         // if too many failed attempts in a row (over about ~63s), assume server is down and start listening for signs of life
-                        logger.error("[TidalStoreUpdater] Too many failed attempts. Server is probably down. Settings up websocket server...");
+                        logger.error("[TidalStoreUpdater] Too many failed attempts. Server is probably down.");
                         if (!backOffWss) { // if not already started
+                            logger.log("[TidalStoreUpdater] Setting up websocket server...");
                             await Native.startServer(listenPort).catch(err => {
                                 logger.error("[TidalStoreUpdater] Failed to start websocket server:", err);
                                 return;
                             });
                             backOffWss = true;
-                            TidalStore.track = null;
                         }
                         backOffSeconds = 600; // backup check every 10 minutes
+                        TidalStore.isPlaying = false;
+                        TidalStore.emitChange();
                     } else {
                         // else increase interval for next try
                         backOffSeconds += 0 * (backOffCounter + 1);

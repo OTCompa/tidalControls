@@ -46,11 +46,11 @@ export const startServer = (_: IpcMainInvokeEvent, port: number = 3666) => {
 export const stopServer = () => {
     if (server) {
         server.close(() => {
-            wsServerActive = false;
             server = null;
             console.log("Server stopped");
         });
     }
+    wsServerActive = false;
 };
 
 export const checkServerStatus = () => wsServerActive;
