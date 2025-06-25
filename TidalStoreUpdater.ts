@@ -73,6 +73,7 @@ export default function TidalStoreUpdater() {
                     if (backOffWss) {
                         // if server indicated it is up
                         if (!await Native.checkServerStatus()) {
+                            if (await Native.checkServerError()) return; // don't try to restart listening server if errored
                             logger.log("[TidalStoreUpdater] WebSocketServer is not running, assuming server is up again!");
                             backOffWss = false;
                             backOffSeconds = 0;
@@ -95,21 +96,23 @@ export default function TidalStoreUpdater() {
                 } catch (e) {
                     if (backOffCounter >= 5) {
                         // if too many failed attempts in a row (over about ~63s), assume server is down and start listening for signs of life
+                        // this solution only works for one discord client at a time. i'll have to figure out a better way to handle this
                         logger.error("[TidalStoreUpdater] Too many failed attempts. Server is probably down.");
                         if (!backOffWss) { // if not already started
                             logger.log("[TidalStoreUpdater] Setting up websocket server...");
-                            await Native.startServer(listenPort).catch(err => {
-                                logger.error("[TidalStoreUpdater] Failed to start websocket server:", err);
+                            const serverStatus = await Native.startServer(listenPort);
+                            if (!serverStatus) {
+                                logger.error("[TidalStoreUpdater] Failed to start websocket server.");
                                 return;
-                            });
+                            }
                             backOffWss = true;
                         }
-                        backOffSeconds = 600; // backup check every 10 minutes
+                        backOffSeconds = 300; // backup check every 5 minutes
                         TidalStore.isPlaying = false;
                         TidalStore.emitChange();
                     } else {
                         // else increase interval for next try
-                        backOffSeconds += 0 * (backOffCounter + 1);
+                        backOffSeconds += 3 * (backOffCounter + 1);
                         logger.log(`[TidalStoreUpdater] Failed to fetch now playing: ${e}\nRetrying in ${backOffSeconds} seconds...\nBackoff counter: ${backOffCounter}`);
                         backOffCounter++;
                     }

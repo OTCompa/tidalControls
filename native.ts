@@ -10,6 +10,7 @@ import { WebSocketServer } from "ws";
 
 let server: WebSocketServer | null = null;
 let wsServerActive = false;
+let wsServerError = false;
 
 CspPolicies["resources.tidal.com"] = ImageSrc;
 
@@ -30,17 +31,28 @@ export const startServer = (_: IpcMainInvokeEvent, port: number = 3666) => {
         console.log("Server is already running, restarting");
         stopServer();
     }
-
-    server = new WebSocketServer({ host: "127.0.0.1", port });
-    wsServerActive = true;
-    server.on("connection", ws => {
-        console.log("Server is now detected, closing server.");
-        ws.send("hello");
-        ws.close(1000); // don't really care about connections, just here to indicate that the server is running
-        server.close();
+    try {
+        server = new WebSocketServer({ host: "127.0.0.1", port });
+        wsServerActive = true;
+        server.on("connection", ws => {
+            console.log("Server is now detected, closing server.");
+            ws.send("hello");
+            ws.close(1000); // don't really care about connections, just here to indicate that the server is running
+            server.close();
+            wsServerActive = false;
+            server = null;
+        });
+        server.on("error", error => {
+            console.log("Server ran into an error:", error);
+            wsServerActive = false;
+            wsServerError = true;
+        });
+    } catch (error) {
+        console.log("Failed to start server:", error);
         wsServerActive = false;
-        server = null;
-    });
+        return false;
+    }
+    return true;
 };
 
 export const stopServer = () => {
@@ -50,7 +62,9 @@ export const stopServer = () => {
             console.log("Server stopped");
         });
     }
+    wsServerError = false;
     wsServerActive = false;
 };
 
 export const checkServerStatus = () => wsServerActive;
+export const checkServerError = () => wsServerError;
