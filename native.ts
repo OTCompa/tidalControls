@@ -6,10 +6,9 @@
 
 import { CspPolicies, ImageSrc } from "@main/csp";
 import { IpcMainInvokeEvent } from "electron";
-import { WebSocketServer } from "ws";
+import { createServer } from "http";
 
-let server: WebSocketServer | null = null;
-let wsServerActive = false;
+let server: ReturnType<typeof createServer> | null = null;
 let wsServerError = false;
 
 CspPolicies["resources.tidal.com"] = ImageSrc;
@@ -31,27 +30,24 @@ export const startServer = (_: IpcMainInvokeEvent, host: string, port: number = 
         console.log("Server is already running, restarting");
         stopServer();
     }
-    try {
-        server = new WebSocketServer({ host, port });
-        wsServerActive = true;
-        server.on("connection", ws => {
-            console.log("Server is now detected, closing server.");
-            ws.send("hello");
-            ws.close(1000); // don't really care about connections, just here to indicate that the server is running
-            server.close();
-            wsServerActive = false;
-            server = null;
-        });
-        server.on("error", error => {
-            console.log("Server ran into an error:", error);
-            wsServerActive = false;
-            wsServerError = true;
-        });
-    } catch (error) {
-        console.log("Failed to start server:", error);
-        wsServerActive = false;
-        return false;
-    }
+    server = createServer((req, res) => {
+        if (req.method === "GET") {
+            res.writeHead(200);
+            res.end();
+            stopServer();
+            return;
+        }
+
+        res.writeHead(404, { "Content-Type": "text/plain" });
+        res.end("Not Found");
+    });
+    server.on("error", err => {
+        console.error("Server error:", err);
+        wsServerError = true;
+    });
+    server.listen(port, host, undefined, () => {
+        console.log(`Running listening server on ${host}:${port}`);
+    });
     return true;
 };
 
@@ -63,8 +59,7 @@ export const stopServer = () => {
         });
     }
     wsServerError = false;
-    wsServerActive = false;
 };
 
-export const checkServerStatus = () => wsServerActive;
+export const checkServerStatus = () => server?.listening ?? false;
 export const checkServerError = () => wsServerError;

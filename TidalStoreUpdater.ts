@@ -55,6 +55,7 @@ const repeatDictionary: Record<string, Repeat> = {
 
 export default function TidalStoreUpdater() {
     useEffect(() => {
+        let wsActive = false;
         let backOffSeconds = 0;
         let backOffCounter = 0;
 
@@ -66,11 +67,12 @@ export default function TidalStoreUpdater() {
             async function loop() { // to make returns restart the loop
                 // backoff
                 if (backOffSeconds > 0) {
-                    if (!await Native.checkServerStatus() && !await Native.checkServerError()) {
+                    if (!await Native.checkServerStatus() && !await Native.checkServerError() && wsActive) {
                         // if server indicated it is up
                         logger.log("[TidalStoreUpdater] WebSocketServer is not running, assuming server is up again!");
                         backOffSeconds = 0;
                         backOffCounter = 0;
+                        wsActive = false;
                         return;
                     }
                     backOffSeconds--;
@@ -98,13 +100,14 @@ export default function TidalStoreUpdater() {
                                 logger.error("[TidalStoreUpdater] Failed to start websocket server.");
                                 return;
                             }
+                            wsActive = true;
                         }
                         backOffSeconds = 300; // backup check every 5 minutes
                         TidalStore.isPlaying = false;
                         TidalStore.emitChange();
                     } else {
                         // else increase interval for next try
-                        backOffSeconds += 3 * (backOffCounter + 1);
+                        backOffSeconds += 0 * (backOffCounter + 1);
                         logger.log(`[TidalStoreUpdater] Failed to fetch now playing: ${e}\nRetrying in ${backOffSeconds} seconds...\nBackoff counter: ${backOffCounter}`);
                         if (backOffCounter < 20) { // max polling rate of 1 minute
                             backOffCounter++;
@@ -120,7 +123,10 @@ export default function TidalStoreUpdater() {
                     backOffSeconds += 3;
                     return;
                 } else {
-                    if (await Native.checkServerStatus()) await Native.stopServer();
+                    if (await Native.checkServerStatus()) {
+                        await Native.stopServer();
+                        wsActive = false;
+                    }
                     backOffCounter = 0;
 
                     TidalStore.track = parseTrack(json);
