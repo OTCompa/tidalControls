@@ -116,6 +116,10 @@ export default function TidalStoreUpdater() {
                     return;
                 }
 
+                if (await Native.checkServerStatus()) {
+                    await Native.stopServer();
+                    wsActive = false;
+                }
                 // process response
                 const json = await res.json();
                 if (json.error) {
@@ -123,10 +127,6 @@ export default function TidalStoreUpdater() {
                     backOffSeconds += 3;
                     return;
                 } else {
-                    if (await Native.checkServerStatus()) {
-                        await Native.stopServer();
-                        wsActive = false;
-                    }
                     backOffCounter = 0;
 
                     TidalStore.track = parseTrack(json);
