@@ -10,6 +10,11 @@ import { useEffect } from "@webpack/common";
 
 import { Repeat, TidalStore } from "./TidalStore";
 
+
+const Native = VencordNative.pluginHelpers.TidalControls as PluginNative<
+    typeof import("./TidalStoreListener.native")
+>;
+
 const logger = new Logger("TidalControls");
 
 function parseTrack(json: any) {
@@ -43,6 +48,7 @@ function parseTrack(json: any) {
 const COOLDOWN_SECONDS = 2;
 const host = Settings.plugins.TidalControls?.host ?? "127.0.0.1";
 const port = Settings.plugins.TidalControls?.port ?? 3665;
+const listenPort = Settings.plugins.TidalControls?.listenPort ?? 3666;
 
 const repeatDictionary: Record<string, Repeat> = {
     0: "off",
@@ -52,30 +58,75 @@ const repeatDictionary: Record<string, Repeat> = {
 
 export default function TidalStoreUpdater() {
     useEffect(() => {
-        let backOff = 0;
+        let backOffSeconds = 0;
+        let backOffCounter = 0;
+        let backOffWss = false;
+
         let cooldownVolume = 0;
         let cooldownShuffle = 0;
         let cooldownRepeat = 0;
-        const interval = setInterval(async () => {
-            if (backOff > 0) {
-                logger.error(`[TidalStore] Retrying in ${backOff} seconds...`);
-                backOff--;
-                return;
-            }
-            const res = await fetch(`http://${host}:${port}/now-playing`);
-            if (!res.ok) {
-                backOff += 3;
-                logger.error(
-                    "[TidalStore] Failed to fetch now playing, retrying in 3 seconds..."
-                );
-                return;
-            } else {
+
+        async function updateTidal() {
+            async function loop() { // to make returns restart the loop
+                // backoff
+                if (backOffSeconds > 0) {
+                    if (backOffWss) {
+                        // if server indicated it is up
+                        if (!await Native.checkServerStatus()) {
+                            logger.log("[TidalStoreUpdater] WebSocketServer is not running, assuming server is up again!");
+                            backOffWss = false;
+                            backOffSeconds = 0;
+                            backOffCounter = 0;
+                            return;
+                        }
+                    }
+                    backOffSeconds--;
+                    return;
+                }
+
+                // try to hit endpoint
+                let res: Response;
+                try {
+                    res = await fetch(`http://${host}:${port}/now-playing`);
+                    if (!res.ok) {
+                        logger.error(`[TidalStoreUpdater] HTTP error! status: ${res.status}`);
+                        return;
+                    }
+                } catch (e) {
+                    if (backOffCounter >= 5) {
+                        // if too many failed attempts in a row (over about ~63s), assume server is down and start listening for signs of life
+                        logger.error("[TidalStoreUpdater] Too many failed attempts. Server is probably down. Settings up websocket server...");
+                        if (!backOffWss) { // if not already started
+                            await Native.startServer(listenPort).catch(err => {
+                                logger.error("[TidalStoreUpdater] Failed to start websocket server:", err);
+                                return;
+                            });
+                            backOffWss = true;
+                            TidalStore.track = null;
+                        }
+                        backOffSeconds = 600; // backup check every 10 minutes
+                    } else {
+                        // else increase interval for next try
+                        backOffSeconds += 0 * (backOffCounter + 1);
+                        logger.log(`[TidalStoreUpdater] Failed to fetch now playing: ${e}\nRetrying in ${backOffSeconds} seconds...\nBackoff counter: ${backOffCounter}`);
+                        backOffCounter++;
+                    }
+                    return;
+                }
+
+                // process response
                 const json = await res.json();
                 if (json.error) {
-                    logger.error("[TidalStore] Error fetching now playing:", json.error);
-                    backOff += 3;
+                    logger.error("[TidalStoreUpdater] Malformed response:", json.error);
+                    backOffSeconds += 3;
                     return;
                 } else {
+                    if (await Native.checkServerStatus()) {
+                        await Native.stopServer();
+                        backOffWss = false;
+                    }
+                    backOffCounter = 0;
+
                     TidalStore.track = parseTrack(json);
                     TidalStore.isPlaying = !json.paused;
                     TidalStore.position = (json.position ?? 0) * 1000;
@@ -107,7 +158,9 @@ export default function TidalStoreUpdater() {
                     TidalStore.emitChange();
                 }
             }
-        }, 1000);
-        return () => clearInterval(interval);
+            await loop();
+            setTimeout(updateTidal, 1000);
+        }
+        updateTidal();
     }, []);
 }

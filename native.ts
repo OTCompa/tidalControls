@@ -6,6 +6,10 @@
 
 import { CspPolicies, ImageSrc } from "@main/csp";
 import { IpcMainInvokeEvent } from "electron";
+import { WebSocketServer } from "ws";
+
+let server: WebSocketServer | null = null;
+let wsServerActive = false;
 
 CspPolicies["resources.tidal.com"] = ImageSrc;
 
@@ -20,3 +24,33 @@ export async function request(_: IpcMainInvokeEvent, method: "GET" | "PUT", host
         method,
     });
 }
+
+export const startServer = (_: IpcMainInvokeEvent, port: number = 3666) => {
+    if (server) {
+        console.log("Server is already running, restarting");
+        stopServer();
+    }
+
+    server = new WebSocketServer({ host: "127.0.0.1", port });
+    wsServerActive = true;
+    server.on("connection", ws => {
+        console.log("Server is now detected, closing server.");
+        ws.send("hello");
+        ws.close(1000); // don't really care about connections, just here to indicate that the server is running
+        server.close();
+        wsServerActive = false;
+        server = null;
+    });
+};
+
+export const stopServer = () => {
+    if (server) {
+        server.close(() => {
+            wsServerActive = false;
+            server = null;
+            console.log("Server stopped");
+        });
+    }
+};
+
+export const checkServerStatus = () => wsServerActive;

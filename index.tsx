@@ -59,6 +59,13 @@ export default definePlugin({
       min: 1,
       max: 65535,
     },
+    listenPort: {
+      type: OptionType.NUMBER,
+      description: "Port to listen on to get notified of PlaybackApi",
+      default: 3666,
+      min: 1,
+      max: 65535,
+    },
   },
   patches: [
     {
