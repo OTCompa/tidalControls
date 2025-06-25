@@ -43,8 +43,8 @@ interface Device {
 export type Repeat = "off" | "track" | "context";
 
 const logger = new Logger("TidalControls");
-const host = Settings.plugins.TidalControls.host || "127.0.0.1";
-const port = Settings.plugins.TidalControls.port || 3665;
+const host = Settings.plugins.TidalControls?.host ?? "127.0.0.1";
+const port = Settings.plugins.TidalControls?.port ?? 3665;
 
 // Don't wanna run before Flux and Dispatcher are ready!
 export const TidalStore = proxyLazyWebpack(() => {
@@ -63,7 +63,7 @@ export const TidalStore = proxyLazyWebpack(() => {
     public device: Device | null = null;
 
     public openExternal(path: string) {
-      const url = Settings.plugins.TidalControls.useTidalUris || Vencord.Plugins.isPluginEnabled("OpenInApp")
+      const url = (Settings.plugins.TidalControls?.useTidalUris ?? false) || Vencord.Plugins.isPluginEnabled("OpenInApp")
         ? `tidal:/${path}`
         : `https://listen.tidal.com${path}`;
       VencordNative.native.openExternal(url);

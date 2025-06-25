@@ -41,8 +41,8 @@ function parseTrack(json: any) {
 }
 
 const COOLDOWN_SECONDS = 2;
-const host = Settings.plugins.TidalControls.host || "127.0.0.1";
-const port = Settings.plugins.TidalControls.port || 3665;
+const host = Settings.plugins.TidalControls?.host ?? "127.0.0.1";
+const port = Settings.plugins.TidalControls?.port ?? 3665;
 
 const repeatDictionary: Record<string, Repeat> = {
     0: "off",

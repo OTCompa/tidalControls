@@ -33,7 +33,7 @@ export default definePlugin({
       description: "Show controls on hover",
       type: OptionType.BOOLEAN,
       default: false,
-      onChange: (v) => toggleHoverControls(v),
+      onChange: v => toggleHoverControls(v),
     },
     useTidalUris: {
       type: OptionType.BOOLEAN,
@@ -104,7 +104,7 @@ export default definePlugin({
   ],
 
   start: () =>
-    toggleHoverControls(Settings.plugins.TidalControls.hoverControls),
+    toggleHoverControls(Settings.plugins.TidalControls?.hoverControls ?? false),
 
   PanelWrapper({ VencordOriginal, ...props }) {
     return (
